@@ -7,87 +7,54 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <!-- Форма авторизации -->
     <div class="auth-container" id="authContainer">
         <div class="auth-tabs">
             <div class="auth-tab active" onclick="showAuthForm('login')">Вход</div>
             <div class="auth-tab" onclick="showAuthForm('register')">Регистрация</div>
         </div>
 
-        <!-- Форма входа -->
         <div class="auth-form active" id="loginForm">
-            <input type="text" class="auth-input" id="loginUsername" placeholder="Юзернейм или @username">
+            <input type="text" class="auth-input" id="loginUsername" placeholder="Юзернейм">
             <input type="password" class="auth-input" id="loginPassword" placeholder="Пароль">
-            <button class="auth-button" onclick="login()">Войти в Kilaib</button>
+            <button class="auth-button" onclick="login()">Войти</button>
             <div class="error-message" id="loginError">Неверный юзернейм или пароль</div>
         </div>
 
-        <!-- Форма регистрации -->
         <div class="auth-form" id="registerForm">
-            <input type="text" class="auth-input" id="registerUsername" placeholder="Придумайте юзернейм" oninput="checkUsernameAvailability()">
-            <div class="username-check" id="usernameCheck"></div>
-            <div class="username-rules">Только английские буквы, цифры и _. От 3 до 20 символов</div>
-
-            <input type="text" class="auth-input" id="registerDisplayName" placeholder="Ваше отображаемое имя">
-
-            <div class="mode-selection">
-                <div class="mode-title">Выберите режим использования:</div>
-                <div class="mode-options">
-                    <div class="mode-option" onclick="selectMode('personal')" id="modePersonal">
-                        <div class="mode-icon">👤</div>
-                        <div class="mode-name">Личный</div>
-                        <div class="mode-desc">Для общения с друзьями</div>
-                    </div>
-                    <div class="mode-option" onclick="selectMode('business')" id="modeBusiness">
-                        <div class="mode-icon">💼</div>
-                        <div class="mode-name">Бизнес</div>
-                        <div class="mode-desc">Для работы и проектов</div>
-                    </div>
-                </div>
-            </div>
-
+            <input type="text" class="auth-input" id="registerUsername" placeholder="Юзернейм">
+            <input type="text" class="auth-input" id="registerDisplayName" placeholder="Ваше имя">
             <input type="password" class="auth-input" id="registerPassword" placeholder="Пароль">
             <input type="password" class="auth-input" id="registerConfirmPassword" placeholder="Подтвердите пароль">
-
-            <button class="auth-button" onclick="register()">Создать аккаунт</button>
+            <button class="auth-button" onclick="register()">Зарегистрироваться</button>
             <div class="error-message" id="registerError">Ошибка регистрации</div>
-            <div class="success-message" id="registerSuccess">Регистрация успешна!</div>
         </div>
     </div>
 
-    <!-- Основной интерфейс мессенджера -->
     <div class="messenger-container" id="messengerContainer">
-        <!-- Сайдбар -->
         <div class="sidebar">
             <div class="sidebar-header">
                 <div class="user-info">
                     <div class="user-avatar" id="currentUserAvatar">U</div>
-                    <div class="user-details">
-                        <div class="username" id="currentUserName">Пользователь</div>
-                        <div class="user-handle" id="currentUserHandle">@username</div>
-                    </div>
+                    <div id="currentUserName">Пользователь</div>
                 </div>
                 <button class="logout-btn" onclick="logout()">Выйти</button>
             </div>
 
             <div class="find-user">
-                <input type="text" class="find-user-input" placeholder="Поиск по @username..." id="searchUserInput" oninput="searchUsers()">
-                <div class="search-icon">🔍</div>
+                <input type="text" class="find-user-input" placeholder="Поиск пользователей..." id="searchUserInput">
                 <div class="search-results" id="searchResults"></div>
             </div>
 
             <div class="contacts-list" id="contactsList">
-                <!-- Контакты будут добавляться здесь -->
+                <!-- Контакты -->
             </div>
         </div>
 
-        <!-- Область чата -->
         <div class="chat-area">
             <div class="chat-header">
                 <div class="contact-avatar" id="currentChatAvatar">U</div>
                 <div class="chat-user-info">
                     <div class="chat-user-name" id="currentChatName">Выберите чат</div>
-                    <div class="chat-user-handle" id="currentChatHandle">@username</div>
                     <div class="chat-user-status" id="currentChatStatus">онлайн</div>
                 </div>
             </div>
@@ -101,7 +68,7 @@
             <div class="input-container">
                 <input type="text" class="message-input" placeholder="Введите сообщение..." id="messageInput" disabled>
                 <button class="send-button" onclick="sendMessage()">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
                     </svg>
                 </button>
@@ -114,6 +81,5 @@
     <script src="js/search.js"></script>
     <script src="js/chat.js"></script>
     <script src="js/app.js"></script>
-<script src="js/simple-shared.js"></script>
 </body>
 </html>

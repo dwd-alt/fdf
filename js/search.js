@@ -1,6 +1,5 @@
-// Поиск пользователей
 function searchUsers() {
-    const searchTerm = document.getElementById('searchUserInput').value.trim();
+    const searchTerm = document.getElementById('searchUserInput').value.toLowerCase();
     const resultsContainer = document.getElementById('searchResults');
     const currentUser = getCurrentUser();
 
@@ -9,22 +8,19 @@ function searchUsers() {
         return;
     }
 
-    // Ищем в ОБЩЕЙ базе
-    const matchingUsers = sharedDB.searchUsers(searchTerm).filter(user =>
-        user.id !== currentUser.id
+    const users = getAllUsers();
+    const matchingUsers = Object.values(users).filter(user =>
+        user.id !== currentUser.id &&
+        (user.username.includes(searchTerm) || user.displayName.toLowerCase().includes(searchTerm))
     );
 
     if (matchingUsers.length === 0) {
-        resultsContainer.innerHTML = '<div class="no-results">Пользователи не найдены</div>';
+        resultsContainer.innerHTML = '<div style="padding: 15px; text-align: center;">Пользователи не найдены</div>';
     } else {
         resultsContainer.innerHTML = matchingUsers.map(user => `
-            <div class="search-result" onclick="startChatWithUser('${user.id}')">
+            <div class="contact" onclick="startChatWithUser('${user.id}')">
                 <div class="contact-avatar">${user.avatar}</div>
-                <div class="contact-info">
-                    <div class="contact-name">${user.displayName}</div>
-                    <div class="contact-handle">${user.handle}</div>
-                    <div class="contact-status">${user.status}</div>
-                </div>
+                <div>${user.displayName}</div>
             </div>
         `).join('');
     }
@@ -32,10 +28,9 @@ function searchUsers() {
     resultsContainer.style.display = 'block';
 }
 
-// Начать чат с пользователем
 function startChatWithUser(userId) {
     const users = getAllUsers();
-    const user = users[userId] || sharedDB.getUser(userId);
+    const user = users[userId];
 
     if (user) {
         selectChat(userId);
@@ -43,3 +38,10 @@ function startChatWithUser(userId) {
         document.getElementById('searchResults').style.display = 'none';
     }
 }
+
+// Скрываем результаты при клике вне
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.find-user')) {
+        document.getElementById('searchResults').style.display = 'none';
+    }
+});

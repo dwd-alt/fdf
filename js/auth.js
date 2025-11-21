@@ -1,28 +1,56 @@
-// Регистрация
+function showAuthForm(formType) {
+    document.querySelectorAll('.auth-tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.auth-form').forEach(form => form.classList.remove('active'));
+
+    if (formType === 'login') {
+        document.querySelector('.auth-tab:nth-child(1)').classList.add('active');
+        document.getElementById('loginForm').classList.add('active');
+    } else {
+        document.querySelector('.auth-tab:nth-child(2)').classList.add('active');
+        document.getElementById('registerForm').classList.add('active');
+    }
+
+    hideErrors();
+}
+
+function hideErrors() {
+    document.getElementById('loginError').style.display = 'none';
+    document.getElementById('registerError').style.display = 'none';
+}
+
+function showError(elementId, message) {
+    const errorElement = document.getElementById(elementId);
+    errorElement.textContent = message;
+    errorElement.style.display = 'block';
+}
+
+function login() {
+    const username = document.getElementById('loginUsername').value;
+    const password = document.getElementById('loginPassword').value;
+
+    hideErrors();
+
+    const users = getAllUsers();
+    const user = users[username];
+
+    if (user && user.password === password) {
+        setCurrentUser(user);
+        showMessenger();
+    } else {
+        showError('loginError', 'Неверный юзернейм или пароль');
+    }
+}
+
 function register() {
-    const username = document.getElementById('registerUsername').value.trim();
-    const displayName = document.getElementById('registerDisplayName').value.trim();
+    const username = document.getElementById('registerUsername').value;
+    const displayName = document.getElementById('registerDisplayName').value;
     const password = document.getElementById('registerPassword').value;
     const confirmPassword = document.getElementById('registerConfirmPassword').value;
 
     hideErrors();
 
-    // Валидация
-    const usernameValidation = validateUsername(username);
-    if (!usernameValidation.valid) {
-        return showError('registerError', usernameValidation.message);
-    }
-
-    if (!displayName) {
-        return showError('registerError', 'Введите отображаемое имя');
-    }
-
-    if (!password) {
-        return showError('registerError', 'Введите пароль');
-    }
-
-    if (password.length < 6) {
-        return showError('registerError', 'Пароль должен быть не менее 6 символов');
+    if (!username || !displayName || !password) {
+        return showError('registerError', 'Заполните все поля');
     }
 
     if (password !== confirmPassword) {
@@ -31,35 +59,27 @@ function register() {
 
     const users = getAllUsers();
 
-    // Проверяем в общей базе
-    if (!sharedDB.isUsernameAvailable(username)) {
-        return showError('registerError', 'Этот юзернейм уже занят');
+    if (users[username]) {
+        return showError('registerError', 'Пользователь уже существует');
     }
 
-    // Создаем нового пользователя
     const newUser = {
         id: username,
         username: username,
         displayName: displayName,
-        handle: `@${username}`,
         password: password,
         avatar: displayName.charAt(0).toUpperCase(),
-        status: 'online',
-        mode: selectedMode,
-        registered: new Date().toISOString()
+        status: 'online'
     };
 
-    // Сохраняем в локальную базу
     users[username] = newUser;
     saveUsers(users);
+    setCurrentUser(newUser);
+    showMessenger();
+}
 
-    // Сохраняем в ОБЩУЮ базу
-    sharedDB.addUser(newUser);
-
-    showSuccess('registerSuccess', 'Аккаунт успешно создан! Выполняется вход...');
-
-    setTimeout(() => {
-        setCurrentUser(newUser);
-        showMessenger();
-    }, 1500);
+function logout() {
+    setCurrentUser(null);
+    document.getElementById('authContainer').style.display = 'block';
+    document.getElementById('messengerContainer').classList.remove('active');
 }
