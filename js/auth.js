@@ -29,8 +29,10 @@ function register() {
         return showError('registerError', 'Пароли не совпадают');
     }
 
-    // Проверяем в ОБЩЕЙ базе
-    if (!isUsernameAvailable(username)) {
+    const users = getAllUsers();
+
+    // Проверяем в общей базе
+    if (!sharedDB.isUsernameAvailable(username)) {
         return showError('registerError', 'Этот юзернейм уже занят');
     }
 
@@ -42,14 +44,17 @@ function register() {
         handle: `@${username}`,
         password: password,
         avatar: displayName.charAt(0).toUpperCase(),
-        status: 'онлайн',
+        status: 'online',
         mode: selectedMode,
-        registered: new Date().toISOString(),
-        lastSeen: new Date().toISOString()
+        registered: new Date().toISOString()
     };
 
-    // Сохраняем в ЛОКАЛЬНУЮ и ОБЩУЮ базу
-    saveUser(newUser);
+    // Сохраняем в локальную базу
+    users[username] = newUser;
+    saveUsers(users);
+
+    // Сохраняем в ОБЩУЮ базу
+    sharedDB.addUser(newUser);
 
     showSuccess('registerSuccess', 'Аккаунт успешно создан! Выполняется вход...');
 

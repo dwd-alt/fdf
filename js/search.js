@@ -1,4 +1,4 @@
-// Поиск пользователей в ОБЩЕЙ базе
+// Поиск пользователей
 function searchUsers() {
     const searchTerm = document.getElementById('searchUserInput').value.trim();
     const resultsContainer = document.getElementById('searchResults');
@@ -9,8 +9,8 @@ function searchUsers() {
         return;
     }
 
-    // Ищем в ОБЩЕЙ базе данных
-    const matchingUsers = searchInSharedDB(searchTerm).filter(user =>
+    // Ищем в ОБЩЕЙ базе
+    const matchingUsers = sharedDB.searchUsers(searchTerm).filter(user =>
         user.id !== currentUser.id
     );
 
@@ -23,7 +23,7 @@ function searchUsers() {
                 <div class="contact-info">
                     <div class="contact-name">${user.displayName}</div>
                     <div class="contact-handle">${user.handle}</div>
-                    <div class="contact-status">${user.status} • ${user.mode === 'business' ? '💼 Бизнес' : '👤 Личный'}</div>
+                    <div class="contact-status">${user.status}</div>
                 </div>
             </div>
         `).join('');
@@ -32,20 +32,14 @@ function searchUsers() {
     resultsContainer.style.display = 'block';
 }
 
-// Начать чат с пользователем из ОБЩЕЙ базы
+// Начать чат с пользователем
 function startChatWithUser(userId) {
-    const user = getSharedUserById(userId); // Берем из ОБЩЕЙ базы
+    const users = getAllUsers();
+    const user = users[userId] || sharedDB.getUser(userId);
 
     if (user) {
         selectChat(userId);
         document.getElementById('searchUserInput').value = '';
         document.getElementById('searchResults').style.display = 'none';
-
-        // Добавляем пользователя в локальные контакты если его там нет
-        const localUser = getUserById(userId);
-        if (!localUser) {
-            saveUser(user); // Сохраняем в локальную базу
-            renderContacts(); // Обновляем список контактов
-        }
     }
 }
