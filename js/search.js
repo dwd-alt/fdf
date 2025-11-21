@@ -1,6 +1,6 @@
-// Поиск пользователей
+// Поиск пользователей в ОБЩЕЙ базе
 function searchUsers() {
-    const searchTerm = document.getElementById('searchUserInput').value.trim().toLowerCase();
+    const searchTerm = document.getElementById('searchUserInput').value.trim();
     const resultsContainer = document.getElementById('searchResults');
     const currentUser = getCurrentUser();
 
@@ -9,12 +9,9 @@ function searchUsers() {
         return;
     }
 
-    const usersFolder = getUsersFolder();
-    const matchingUsers = Object.values(usersFolder).filter(user =>
-        user.id !== currentUser.id &&
-        (user.username.toLowerCase().includes(searchTerm.replace('@', '')) ||
-         user.handle.toLowerCase().includes(searchTerm) ||
-         user.displayName.toLowerCase().includes(searchTerm))
+    // Ищем в ОБЩЕЙ базе данных
+    const matchingUsers = searchInSharedDB(searchTerm).filter(user =>
+        user.id !== currentUser.id
     );
 
     if (matchingUsers.length === 0) {
@@ -35,13 +32,20 @@ function searchUsers() {
     resultsContainer.style.display = 'block';
 }
 
-// Начать чат с пользователем
+// Начать чат с пользователем из ОБЩЕЙ базы
 function startChatWithUser(userId) {
-    const user = getUserById(userId);
+    const user = getSharedUserById(userId); // Берем из ОБЩЕЙ базы
 
     if (user) {
         selectChat(userId);
         document.getElementById('searchUserInput').value = '';
         document.getElementById('searchResults').style.display = 'none';
+
+        // Добавляем пользователя в локальные контакты если его там нет
+        const localUser = getUserById(userId);
+        if (!localUser) {
+            saveUser(user); // Сохраняем в локальную базу
+            renderContacts(); // Обновляем список контактов
+        }
     }
 }

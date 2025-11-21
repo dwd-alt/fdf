@@ -1,6 +1,6 @@
 // Инициализация при загрузке
 window.onload = function() {
-    initializeDatabase();
+    initializeDatabase(); // Это теперь включает инициализацию ОБЩЕЙ базы
     selectMode(CONFIG.MODES.PERSONAL);
 
     // Проверяем, авторизован ли пользователь

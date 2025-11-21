@@ -9,28 +9,52 @@ const CONFIG = {
     }
 };
 
-// База данных в localStorage с файловой структурой
+// База данных в localStorage с ОБЩЕЙ базой пользователей
 const DB_KEYS = {
     USERS_FOLDER: 'kilaib_users_folder',
     USERNAMES_INDEX: 'kilaib_usernames_index',
     MESSAGES: 'kilaib_messages',
-    CURRENT_USER: 'kilaib_current_user'
+    CURRENT_USER: 'kilaib_current_user',
+    SHARED_USERS: 'kilaib_shared_users' // ОБЩАЯ база
 };
 
 // Инициализация базы данных
 function initializeDatabase() {
     if (!localStorage.getItem(DB_KEYS.USERS_FOLDER)) {
-        // Создаем папку пользователей
-        const usersFolder = {
+        const usersFolder = {};
+        localStorage.setItem(DB_KEYS.USERS_FOLDER, JSON.stringify(usersFolder));
+    }
+
+    if (!localStorage.getItem(DB_KEYS.USERNAMES_INDEX)) {
+        const usernamesIndex = {};
+        localStorage.setItem(DB_KEYS.USERNAMES_INDEX, JSON.stringify(usernamesIndex));
+    }
+
+    if (!localStorage.getItem(DB_KEYS.MESSAGES)) {
+        localStorage.setItem(DB_KEYS.MESSAGES, JSON.stringify({}));
+    }
+
+    // Инициализируем общую базу
+    initializeSharedDatabase();
+}
+
+// === ОБЩАЯ БАЗА ПОЛЬЗОВАТЕЛЕЙ === //
+
+// Инициализация общей базы
+function initializeSharedDatabase() {
+    const sharedUsers = getSharedUsers();
+    if (Object.keys(sharedUsers).length === 0) {
+        // Создаем демо-пользователей в ОБЩЕЙ базе
+        const demoUsers = {
             'alexey': {
                 id: 'alexey',
                 username: 'alexey',
-                displayName: 'Алексей',
+                displayName: 'Алексей Петров',
                 handle: '@alexey',
                 password: '123456',
                 avatar: 'А',
-                status: 'online',
-                mode: CONFIG.MODES.PERSONAL,
+                status: 'онлайн',
+                mode: 'personal',
                 registered: new Date().toISOString(),
                 lastSeen: new Date().toISOString()
             },
@@ -42,7 +66,7 @@ function initializeDatabase() {
                 password: '123456',
                 avatar: 'М',
                 status: 'был(а) 5 мин назад',
-                mode: CONFIG.MODES.BUSINESS,
+                mode: 'business',
                 registered: new Date().toISOString(),
                 lastSeen: new Date().toISOString()
             },
@@ -53,29 +77,58 @@ function initializeDatabase() {
                 handle: '@tech_support',
                 password: '123456',
                 avatar: 'П',
-                status: 'online',
-                mode: CONFIG.MODES.BUSINESS,
+                status: 'онлайн',
+                mode: 'business',
                 registered: new Date().toISOString(),
                 lastSeen: new Date().toISOString()
             }
         };
-        localStorage.setItem(DB_KEYS.USERS_FOLDER, JSON.stringify(usersFolder));
-    }
-
-    if (!localStorage.getItem(DB_KEYS.USERNAMES_INDEX)) {
-        // Создаем индекс занятых юзернеймов
-        const usernamesIndex = {
-            'alexey': true,
-            'maria_work': true,
-            'tech_support': true
-        };
-        localStorage.setItem(DB_KEYS.USERNAMES_INDEX, JSON.stringify(usernamesIndex));
-    }
-
-    if (!localStorage.getItem(DB_KEYS.MESSAGES)) {
-        localStorage.setItem(DB_KEYS.MESSAGES, JSON.stringify({}));
+        localStorage.setItem(DB_KEYS.SHARED_USERS, JSON.stringify(demoUsers));
     }
 }
+
+// Получить общих пользователей
+function getSharedUsers() {
+    try {
+        const sharedData = localStorage.getItem(DB_KEYS.SHARED_USERS);
+        return JSON.parse(sharedData) || {};
+    } catch (e) {
+        return {};
+    }
+}
+
+// Сохранить пользователя в ОБЩУЮ базу
+function saveUserToSharedDB(user) {
+    try {
+        const sharedUsers = getSharedUsers();
+        sharedUsers[user.id] = user;
+        localStorage.setItem(DB_KEYS.SHARED_USERS, JSON.stringify(sharedUsers));
+        return true;
+    } catch (e) {
+        console.error('Ошибка сохранения в общую базу:', e);
+        return false;
+    }
+}
+
+// Поиск пользователей в ОБЩЕЙ базе
+function searchInSharedDB(searchTerm) {
+    const sharedUsers = getSharedUsers();
+    const term = searchTerm.toLowerCase().replace('@', '');
+
+    return Object.values(sharedUsers).filter(user =>
+        user.username.toLowerCase().includes(term) ||
+        user.handle.toLowerCase().includes(term) ||
+        user.displayName.toLowerCase().includes(term)
+    );
+}
+
+// Получить пользователя из ОБЩЕЙ базы по ID
+function getSharedUserById(userId) {
+    const sharedUsers = getSharedUsers();
+    return sharedUsers[userId];
+}
+
+// === ЛОКАЛЬНАЯ БАЗА === //
 
 // Получить папку пользователей
 function getUsersFolder() {
@@ -124,12 +177,15 @@ function saveUser(user) {
 
     saveUsersFolder(usersFolder);
     saveUsernamesIndex(usernamesIndex);
+
+    // ТЕПЕРЬ СОХРАНЯЕМ В ОБЩУЮ БАЗУ
+    saveUserToSharedDB(user);
 }
 
 // Проверить доступность юзернейма
 function isUsernameAvailable(username) {
-    const usernamesIndex = getUsernamesIndex();
-    return !usernamesIndex[username];
+    const sharedUsers = getSharedUsers(); // Проверяем в ОБЩЕЙ базе
+    return !sharedUsers[username];
 }
 
 // Получить текущего пользователя
