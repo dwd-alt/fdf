@@ -1,0 +1,29 @@
+{
+  "users": {
+    "alexey": {
+      "id": "alexey",
+      "username": "alexey",
+      "displayName": "Алексей Петров",
+      "password": "123456",
+      "avatar": "А",
+      "status": "онлайн"
+    },
+    "maria": {
+      "id": "maria",
+      "username": "maria",
+      "displayName": "Мария Иванова",
+      "password": "123456",
+      "avatar": "М",
+      "status": "онлайн"
+    },
+    "support": {
+      "id": "support",
+      "username": "support",
+      "displayName": "Поддержка Kilaib",
+      "password": "123456",
+      "avatar": "П",
+      "status": "онлайн"
+    }
+  },
+  "messages": {}
+}

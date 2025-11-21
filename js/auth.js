@@ -1,46 +1,3 @@
-function showAuthForm(formType) {
-    document.querySelectorAll('.auth-tab').forEach(tab => tab.classList.remove('active'));
-    document.querySelectorAll('.auth-form').forEach(form => form.classList.remove('active'));
-
-    if (formType === 'login') {
-        document.querySelector('.auth-tab:nth-child(1)').classList.add('active');
-        document.getElementById('loginForm').classList.add('active');
-    } else {
-        document.querySelector('.auth-tab:nth-child(2)').classList.add('active');
-        document.getElementById('registerForm').classList.add('active');
-    }
-
-    hideErrors();
-}
-
-function hideErrors() {
-    document.getElementById('loginError').style.display = 'none';
-    document.getElementById('registerError').style.display = 'none';
-}
-
-function showError(elementId, message) {
-    const errorElement = document.getElementById(elementId);
-    errorElement.textContent = message;
-    errorElement.style.display = 'block';
-}
-
-function login() {
-    const username = document.getElementById('loginUsername').value;
-    const password = document.getElementById('loginPassword').value;
-
-    hideErrors();
-
-    const users = getAllUsers();
-    const user = users[username];
-
-    if (user && user.password === password) {
-        setCurrentUser(user);
-        showMessenger();
-    } else {
-        showError('loginError', 'Неверный юзернейм или пароль');
-    }
-}
-
 function register() {
     const username = document.getElementById('registerUsername').value;
     const displayName = document.getElementById('registerDisplayName').value;
@@ -57,11 +14,12 @@ function register() {
         return showError('registerError', 'Пароли не совпадают');
     }
 
-    const users = getAllUsers();
-
-    if (users[username]) {
-        return showError('registerError', 'Пользователь уже существует');
+    // Проверяем в ОБЩЕЙ базе
+    if (!isUsernameAvailable(username)) {
+        return showError('registerError', 'Этот юзернейм уже занят');
     }
+
+    const localUsers = JSON.parse(localStorage.getItem(DB_KEYS.LOCAL_USERS) || '{}');
 
     const newUser = {
         id: username,
@@ -69,17 +27,11 @@ function register() {
         displayName: displayName,
         password: password,
         avatar: displayName.charAt(0).toUpperCase(),
-        status: 'online'
+        status: 'онлайн'
     };
 
-    users[username] = newUser;
-    saveUsers(users);
+    localUsers[username] = newUser;
+    saveUsers(localUsers);
     setCurrentUser(newUser);
     showMessenger();
-}
-
-function logout() {
-    setCurrentUser(null);
-    document.getElementById('authContainer').style.display = 'block';
-    document.getElementById('messengerContainer').classList.remove('active');
 }

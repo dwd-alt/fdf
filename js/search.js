@@ -8,10 +8,12 @@ function searchUsers() {
         return;
     }
 
-    const users = getAllUsers();
-    const matchingUsers = Object.values(users).filter(user =>
+    // Ищем в ОБЩИХ пользователях
+    const sharedUsers = getSharedUsers();
+    const matchingUsers = Object.values(sharedUsers).filter(user =>
         user.id !== currentUser.id &&
-        (user.username.includes(searchTerm) || user.displayName.toLowerCase().includes(searchTerm))
+        (user.username.includes(searchTerm) ||
+         user.displayName.toLowerCase().includes(searchTerm))
     );
 
     if (matchingUsers.length === 0) {
@@ -20,7 +22,10 @@ function searchUsers() {
         resultsContainer.innerHTML = matchingUsers.map(user => `
             <div class="contact" onclick="startChatWithUser('${user.id}')">
                 <div class="contact-avatar">${user.avatar}</div>
-                <div>${user.displayName}</div>
+                <div>
+                    <div style="font-weight: 600;">${user.displayName}</div>
+                    <div style="font-size: 12px; color: #666;">${user.status}</div>
+                </div>
             </div>
         `).join('');
     }
@@ -29,19 +34,14 @@ function searchUsers() {
 }
 
 function startChatWithUser(userId) {
-    const users = getAllUsers();
-    const user = users[userId];
+    const allUsers = getAllUsers();
+    const user = allUsers[userId];
 
     if (user) {
         selectChat(userId);
         document.getElementById('searchUserInput').value = '';
         document.getElementById('searchResults').style.display = 'none';
+
+        console.log('Начат чат с:', user.displayName);
     }
 }
-
-// Скрываем результаты при клике вне
-document.addEventListener('click', function(e) {
-    if (!e.target.closest('.find-user')) {
-        document.getElementById('searchResults').style.display = 'none';
-    }
-});
