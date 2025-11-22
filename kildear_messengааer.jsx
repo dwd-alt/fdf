@@ -1,0 +1,491 @@
+<!-- FULL STANDALONE HTML VERSION OF KILDEAR MESSENGER -->
+<!-- Drop this file into index.html and open in browser. No build tools needed. -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kildear Messenger</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+body { background:#000; color:white; }
+input,button { outline:none; }
+::-webkit-scrollbar{ width:4px; }
+::-webkit-scrollbar-thumb{ background:#444; }
+</style>
+</head>
+<body class="h-screen flex items-center justify-center">
+<div id="app" class="w-full h-full"></div>
+<script>
+// === SIMPLE LOCAL DATABASE (username table, users, chats, messages) ===
+const db={
+ users:JSON.parse(localStorage.getItem('k_users')||'[]'),
+ chats:JSON.parse(localStorage.getItem('k_chats')||'[]'),
+ messages:JSON.parse(localStorage.getItem('k_msgs')||'[]')
+};
+function save(){ localStorage.setItem('k_users',JSON.stringify(db.users)); localStorage.setItem('k_chats',JSON.stringify(db.chats)); localStorage.setItem('k_msgs',JSON.stringify(db.messages)); }
+
+// === AUTH STATE ===
+let session=JSON.parse(localStorage.getItem('k_sess')||'null');
+function setSession(u){ session=u; localStorage.setItem('k_sess',JSON.stringify(u)); render(); }
+
+// === UI HELPERS ===
+function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; }
+
+// === SCREENS ===
+function screenLogin(){ return el(`
+ <div class="flex flex-col gap-4 w-80 mx-auto mt-20">
+   <h1 class="text-xl font-bold text-center">Kildear — Вход</h1>
+   <input id="l_u" class="p-2 rounded bg-neutral-900" placeholder="Юзернейм" />
+   <input id="l_p" type="password" class="p-2 rounded bg-neutral-900" placeholder="Пароль" />
+   <button class="p-2 bg-blue-600 rounded" onclick="login()">Войти</button>
+   <button class="p-2 bg-neutral-700 rounded" onclick="renderReg()">Регистрация</button>
+ </div>`);
+}
+
+function screenReg(){ return el(`
+ <div class="flex flex-col gap-4 w-80 mx-auto mt-20">
+   <h1 class="text-xl font-bold text-center">Kildear — Регистрация</h1>
+   <input id="r_n" class="p-2 rounded bg-neutral-900" placeholder="Имя" />
+   <input id="r_u" class="p-2 rounded bg-neutral-900" placeholder="Юзернейм (уникальный)" />
+   <input id="r_p" type="password" class="p-2 rounded bg-neutral-900" placeholder="Пароль" />
+   <button class="p-2 bg-blue-600 rounded" onclick="registerUser()">Зарегистрироваться</button>
+   <button class="p-2 bg-neutral-700 rounded" onclick="renderLogin()">Назад</button>
+ </div>`);
+}
+
+function screenMain(){
+ return el(`
+ <div class="flex h-full">
+   <div class="w-64 bg-neutral-950 p-4 flex flex-col">
+     <input id="search" class="p-2 rounded bg-neutral-900" placeholder="Поиск @username" oninput="searchUser()" />
+     <div id="results" class="mt-4 flex-1 overflow-y-auto"></div>
+   </div>
+   <div class="flex-1 flex flex-col bg-neutral-900" id="chatArea">
+     <div class="flex-1 flex items-center justify-center text-neutral-500">Выберите чат</div>
+   </div>
+ </div>`);
+}
+
+function screenChat(chatId){
+ const chat=db.chats.find(c=>c.id===chatId);
+ const other=chat.users.find(u=>u!==session.username);
+ const msgs=db.messages.filter(m=>m.chatId===chatId);
+ const div=el(`
+ <div class="flex h-full flex-col">
+   <div class="p-4 bg-neutral-950 border-b border-neutral-800">@${other}</div>
+   <div id="msgList" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2"></div>
+   <div class="p-4 flex gap-2 border-t border-neutral-800">
+     <input id="msg" class="flex-1 p-2 rounded bg-neutral-800" placeholder="Сообщение..." />
+     <button class="p-2 bg-blue-600 rounded" onclick="sendMsg(${chatId})">➤</button>
+   </div>
+ </div>`);
+ const list=div.querySelector('#msgList');
+ msgs.forEach(m=>{
+   list.append(el(`<div class="${m.from===session.username?'text-right':''}"><div class="inline-block p-2 rounded bg-neutral-800">${m.text}</div></div>`));
+ });
+ return div;
+}
+
+// === LOGIC ===
+function login(){
+ const u=document.getElementById('l_u').value;
+ const p=document.getElementById('l_p').value;
+ const user=db.users.find(x=>x.username===u && x.password===p);
+ if(!user) return alert('Неверно');
+ setSession(user);
+}
+function registerUser(){
+ const name=document.getElementById('r_n').value;
+ const username=document.getElementById('r_u').value;
+ const pass=document.getElementById('r_p').value;
+ if(db.users.some(u=>u.username===username)) return alert('Юзернейм занят');
+ db.users.push({name,username,password:pass}); save(); alert('Готово'); renderLogin();
+}
+function searchUser(){
+ const q=document.getElementById('search').value.trim().toLowerCase();
+ const box=document.getElementById('results'); box.innerHTML='';
+ if(!q) return;
+ db.users.filter(u=>u.username.toLowerCase().includes(q) && u.username!==session.username)
+ .forEach(u=>{
+   box.append(el(`<div class="p-2 hover:bg-neutral-800 cursor-pointer" onclick="openChatWith('${u.username}')">@${u.username} — ${u.name}</div>`));
+ });
+}
+function openChatWith(username){
+ let chat=db.chats.find(c=>c.users.includes(session.username)&&c.users.includes(username));
+ if(!chat){ chat={id:Date.now(),users:[session.username,username]}; db.chats.push(chat); save(); }
+ renderChat(chat.id);
+}
+function sendMsg(chatId){
+ const t=document.getElementById('msg').value; if(!t) return;
+ db.messages.push({chatId,text:t,from:session.username,time:Date.now()}); save(); renderChat(chatId);
+}
+
+// === RENDER ===
+function render(){ const root=document.getElementById('app'); root.innerHTML=''; root.append(session?screenMain():screenLogin()); }
+function renderLogin(){ const root=document.getElementById('app'); root.innerHTML=''; root.append(screenLogin()); }
+function renderReg(){ const root=document.getElementById('app'); root.innerHTML=''; root.append(screenReg()); }
+function renderChat(id){ const root=document.getElementById('app'); root.innerHTML=''; const main=screenMain(); root.append(main); main.querySelector('#chatArea').innerHTML=''; main.querySelector('#chatArea').append(screenChat(id)); }
+
+render();
+</script>
+</body>
+</html>
+/* Kildear — single-file React messenger prototype (upgraded)
+
+Features added in this version:
+- Registration (username, password, display name) with uniqueness check for usernames
+- Login / logout and persisted session (localStorage)
+- Username search (like Telegram) by typing @username; shows results and lets you start a conversation
+- Database of taken usernames stored in localStorage with quick validation during registration
+- Start 1:1 chats with other users and exchange messages
+- Simple black/dark theme (global) with clean, minimal UI
+- Message delivery simulation and statuses (sending, delivered, read)
+- Local persistence of users, messages and conversations so you can test multi-user flows by creating multiple accounts
+
+How to use in dev: include this file in a React + Tailwind project and render the default export.
+
+Notes: This is still a demo/prototype that uses localStorage as a simulated backend. For a production-ready messenger you'll want to replace localStorage with a real backend (Auth + DB) and WebSockets for realtime delivery.
+*/
+
+import React, { useEffect, useRef, useState } from "react";
+
+// Utilities
+function uid() { return Math.random().toString(36).slice(2, 9); }
+function now() { return Date.now(); }
+function fmtTime(ts) { const d = new Date(ts); return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+
+const USERS_KEY = 'kildear_users_v1';
+const SESSION_KEY = 'kildear_session_v1';
+const MSGS_KEY = 'kildear_msgs_v1';
+
+// Simple local DB helpers (localStorage)
+function loadJSON(key, fallback) {
+  try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch (e) { return fallback; }
+}
+function saveJSON(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+
+// Seed helper (keeps small demo users)
+function seedIfNeeded() {
+  const users = loadJSON(USERS_KEY, null);
+  if (!users) {
+    const alice = { id: 'u_' + uid(), username: 'alice', name: 'Alice', password: 'alice', createdAt: now() };
+    const bob = { id: 'u_' + uid(), username: 'bob', name: 'Bob', password: 'bob', createdAt: now() };
+    saveJSON(USERS_KEY, { [alice.username]: alice, [bob.username]: bob });
+    const convId = 'c_' + uid();
+    const msgs = { [convId]: [ { id: uid(), from: alice.id, text: 'Привет, Bob!', ts: now() - 1000*60*60, status: 'read' }, { id: uid(), from: bob.id, text: 'Привет, Alice!', ts: now() - 1000*60*60 + 20000, status: 'read' } ] };
+    // store a mapping conversation -> [participants]
+    saveJSON(MSGS_KEY, { messages: msgs, convs: { [convId]: { id: convId, participants: [alice.id, bob.id], createdAt: now() - 1000*60*60 } } });
+    saveJSON(SESSION_KEY, null);
+  }
+}
+
+export default function KildearMessenger() {
+  seedIfNeeded();
+
+  // State
+  const [users, setUsers] = useState(() => loadJSON(USERS_KEY, {}));
+  const [db, setDb] = useState(() => loadJSON(MSGS_KEY, { messages: {}, convs: {} }));
+  const [session, setSession] = useState(() => loadJSON(SESSION_KEY, null));
+  const [activeConvId, setActiveConvId] = useState(null);
+  const [input, setInput] = useState('');
+  const [attached, setAttached] = useState(null);
+  const [search, setSearch] = useState('');
+  const [themeDark] = useState(true); // requested simple black theme
+  const listRef = useRef(null);
+
+  useEffect(() => saveJSON(USERS_KEY, users), [users]);
+  useEffect(() => saveJSON(MSGS_KEY, db), [db]);
+  useEffect(() => saveJSON(SESSION_KEY, session), [session]);
+
+  // Auto-scroll when messages change
+  useEffect(() => { const el = listRef.current; if (el) { el.scrollTop = el.scrollHeight; } }, [db, activeConvId]);
+
+  // Auth functions
+  function register({ username, password, name }) {
+    username = String(username).trim().toLowerCase();
+    if (!username.match(/^[a-z0-9_]{3,32}$/)) {
+      throw new Error('Имя пользователя должно быть 3–32 символа: латинские буквы, цифры и подчёркивание.');
+    }
+    if (!password || password.length < 4) throw new Error('Пароль должен быть минимум 4 символа.');
+    if (!name || name.length < 1) throw new Error('Укажите отображаемое имя.');
+    if (users[username]) throw new Error('Имя пользователя занято.');
+    const newUser = { id: 'u_' + uid(), username, name, password, createdAt: now() };
+    const next = { ...users, [username]: newUser };
+    setUsers(next);
+    setSession({ userId: newUser.id, username: newUser.username });
+    return newUser;
+  }
+
+  function login({ username, password }) {
+    username = String(username).trim().toLowerCase();
+    const u = users[username];
+    if (!u || u.password !== password) throw new Error('Неверный логин или пароль.');
+    setSession({ userId: u.id, username: u.username });
+    return u;
+  }
+
+  function logout() { setSession(null); setActiveConvId(null); }
+
+  // Conversations helpers
+  function convsForUser(userId) {
+    return Object.values(db.convs).filter(c => c.participants.includes(userId)).sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
+  }
+
+  function createOrGetConversationBetween(userAId, userBId) {
+    const found = Object.values(db.convs).find(c => {
+      const p = c.participants || [];
+      return p.length === 2 && p.includes(userAId) && p.includes(userBId);
+    });
+    if (found) return found;
+    const id = 'c_' + uid();
+    const conv = { id, participants: [userAId, userBId], createdAt: now() };
+    const nextConvs = { ...db.convs, [id]: conv };
+    setDb(d => ({ ...d, convs: nextConvs, messages: { ...d.messages, [id]: [] } }));
+    return conv;
+  }
+
+  function sendMessage(text, convId, fromId, attachment) {
+    if (!text && !attachment) return;
+    const msg = { id: uid(), from: fromId, text: text || (attachment && attachment.name) || '', ts: now(), status: 'sending', attachment: attachment ? { name: attachment.name, dataUrl: attachment.dataUrl } : null };
+    setDb(d => {
+      const messages = { ...d.messages, [convId]: [...(d.messages[convId] || []), msg] };
+      return { ...d, messages };
+    });
+    // simulate delivery/read
+    setTimeout(() => {
+      setDb(d => ({ ...d, messages: { ...d.messages, [convId]: d.messages[convId].map(m => m.id === msg.id ? { ...m, status: 'delivered' } : m) } }));
+      setTimeout(() => {
+        setDb(d => ({ ...d, messages: { ...d.messages, [convId]: d.messages[convId].map(m => m.id === msg.id ? { ...m, status: 'read' } : m) } }));
+      }, 1000 + Math.random() * 2000);
+    }, 500 + Math.random() * 1000);
+  }
+
+  // Search for username like @username
+  function runSearch(term) {
+    const t = String(term || '').trim();
+    if (!t) return [];
+    if (t.startsWith('@')) {
+      const q = t.slice(1).toLowerCase();
+      return Object.values(users).filter(u => u.username.includes(q));
+    }
+    // also allow searching by name
+    const q = t.toLowerCase();
+    return Object.values(users).filter(u => u.name.toLowerCase().includes(q) || u.username.includes(q));
+  }
+
+  // UI actions
+  function onStartChatWith(username) {
+    const other = users[username.toLowerCase()];
+    if (!other) { alert('Пользователь не найден.'); return; }
+    if (!session) { alert('Войдите или зарегистрируйтесь, чтобы начать переписку.'); return; }
+    const conv = createOrGetConversationBetween(session.userId, other.id);
+    setActiveConvId(conv.id);
+  }
+
+  function handleFileAttach(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => setAttached({ name: file.name, dataUrl: e.target.result });
+    reader.readAsDataURL(file);
+  }
+
+  // Small helper to get user object by id
+  function userById(id) { return Object.values(users).find(u=>u.id===id) || null; }
+
+  // Derived
+  const currentUser = session ? Object.values(users).find(u=>u.id===session.userId) : null;
+  const convList = currentUser ? convsForUser(currentUser.id) : [];
+  const activeMessages = activeConvId ? (db.messages[activeConvId] || []) : [];
+
+  // Very small keyboard send
+  function onSend() {
+    if (!currentUser || !activeConvId) return alert('Выберите чат и войдите.');
+    sendMessage(input.trim(), activeConvId, currentUser.id, attached);
+    setInput(''); setAttached(null);
+  }
+
+  return (
+    <div className={"flex h-screen " + (themeDark ? "bg-black text-gray-100" : "bg-gray-100 text-gray-900")}>
+      {/* Sidebar: auth + conv list + search */}
+      <aside className="w-80 border-r border-gray-800 p-4 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Kildear</h1>
+          <div className="text-sm opacity-80">Demo</div>
+        </div>
+
+        {/* Auth box */}
+        <section className="p-3 rounded border border-gray-800 bg-gray-900">
+          {currentUser ? (
+            <div className="flex flex-col gap-2">
+              <div className="text-sm">Вошёл как</div>
+              <div className="font-medium">{currentUser.name} <span className="text-xs opacity-70">@{currentUser.username}</span></div>
+              <div className="flex gap-2 mt-2">
+                <button className="flex-1 py-1 rounded bg-indigo-600" onClick={()=>{}}>Профиль</button>
+                <button className="py-1 px-3 rounded border" onClick={logout}>Выйти</button>
+              </div>
+            </div>
+          ) : (
+            <AuthPanel onRegister={register} onLogin={login} users={users} />
+          )}
+        </section>
+
+        {/* Search */}
+        <div>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Поиск @username или имя" className="w-full px-3 py-2 rounded bg-gray-900 border border-gray-800" />
+          <div className="mt-2 max-h-36 overflow-auto space-y-2">
+            {runSearch(search).map(u => (
+              <div key={u.id} className="p-2 rounded bg-gray-800 flex items-center justify-between">
+                <div>
+                  <div className="font-medium">{u.name}</div>
+                  <div className="text-xs opacity-70">@{u.username}</div>
+                </div>
+                <div className="flex gap-2">
+                  <button className="px-2 py-1 rounded bg-green-600" onClick={()=>onStartChatWith(u.username)}>Чат</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto">
+          <div className="text-xs opacity-60 mb-2">Чаты</div>
+          <div className="space-y-2">
+            {convList.length === 0 && <div className="text-sm opacity-60">Нет чатов — начните новый через поиск</div>}
+            {convList.map(conv => {
+              const otherId = conv.participants.find(p=>p!==currentUser?.id);
+              const other = userById(otherId) || { name: 'Неизвестный', username: '---' };
+              const lastMsg = (db.messages[conv.id] || []).slice(-1)[0];
+              return (
+                <div key={conv.id} onClick={()=>setActiveConvId(conv.id)} className={"p-2 rounded cursor-pointer " + (conv.id===activeConvId ? 'bg-gray-700' : 'bg-gray-900') }>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium">{other.name}</div>
+                      <div className="text-xs opacity-60">@{other.username}</div>
+                    </div>
+                    <div className="text-xs opacity-60">{lastMsg ? fmtTime(lastMsg.ts) : ''}</div>
+                  </div>
+                  <div className="text-sm opacity-50 mt-1">{ lastMsg ? (lastMsg.text.slice(0, 40)) : 'Нет сообщений' }</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+      </aside>
+
+      {/* Main area: conversation */}
+      <main className="flex-1 flex flex-col">
+        <header className="p-4 border-b border-gray-800 flex items-center justify-between">
+          <div>
+            <div className="text-lg font-semibold">{activeConvId ? ( (() => {
+              const conv = db.convs[activeConvId];
+              if (!conv) return 'Выберите чат';
+              const otherId = conv.participants.find(p=>p!==currentUser?.id);
+              const other = userById(otherId) || { name: 'Неизвестный', username: '---' };
+              return other.name + ' @' + other.username;
+            })() ) : 'Выберите чат'}</div>
+            <div className="text-xs opacity-60">{activeConvId ? '' : 'Найдите пользователя слева и начните чат'}</div>
+          </div>
+          <div className="text-sm opacity-60">Темная тема</div>
+        </header>
+
+        <section className="flex-1 flex flex-col">
+          <div ref={listRef} className="flex-1 overflow-auto p-4 space-y-3">
+            {activeConvId ? (
+              (activeMessages.length === 0) ? <div className="text-sm opacity-60">Пустая переписка</div> : activeMessages.map(m => (
+                <div key={m.id} className={"max-w-3xl " + (m.from === currentUser?.id ? 'ml-auto text-right' : 'mr-auto text-left')}>
+                  <div className={"inline-block p-3 rounded-2xl " + (m.from === currentUser?.id ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-100') }>
+                    <div className="text-sm">{m.attachment ? <img src={m.attachment.dataUrl} alt={m.attachment.name} className="max-w-xs rounded" /> : m.text}</div>
+                    <div className="text-xs mt-1 opacity-60">{fmtTime(m.ts)} {m.from === currentUser?.id && <span>• {m.status}</span>}</div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="h-full flex items-center justify-center text-sm opacity-60">Выберите чат слева или найдите пользователя</div>
+            )}
+          </div>
+
+          <div className="p-3 border-t border-gray-800">
+            {attached && (
+              <div className="mb-2 flex items-center gap-3">
+                <img src={attached.dataUrl} alt={attached.name} className="w-16 h-16 object-cover rounded" />
+                <div className="flex-1">
+                  <div className="font-medium">{attached.name}</div>
+                  <div className="text-sm opacity-60">Прикреплено</div>
+                </div>
+                <button onClick={()=>setAttached(null)} className="px-2 py-1 rounded border">Удалить</button>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <input placeholder={currentUser ? 'Введите сообщение...' : 'Войдите, чтобы отправлять сообщения'} disabled={!currentUser || !activeConvId} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{ if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); } }} className="flex-1 px-3 py-2 rounded bg-gray-900 border border-gray-800" />
+              <label className="px-3 py-2 rounded border border-gray-800 cursor-pointer">
+                📎
+                <input type="file" accept="image/*" onChange={e=>handleFileAttach(e.target.files?.[0])} className="hidden" />
+              </label>
+              <button onClick={onSend} disabled={!currentUser || !activeConvId} className="px-4 py-2 rounded bg-indigo-600 text-white">Отправить</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+// --- AuthPanel component (kept in same file for single-file delivery) ---
+function AuthPanel({ onRegister, onLogin, users }) {
+  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+
+  function tryRegister() {
+    setError('');
+    try {
+      const u = onRegister({ username, password, name });
+      // success handled by parent (session set)
+    } catch (e) { setError(e.message || String(e)); }
+  }
+  function tryLogin() {
+    setError('');
+    try { onLogin({ username, password }); } catch (e) { setError(e.message || String(e)); }
+  }
+
+  const usernameTaken = username && !!users[username.toLowerCase()];
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-2 text-xs opacity-60">
+        <button className={mode==='login' ? 'underline' : ''} onClick={()=>setMode('login')}>Вход</button>
+        <button className={mode==='register' ? 'underline' : ''} onClick={()=>setMode('register')}>Регистрация</button>
+      </div>
+
+      {mode === 'register' && (
+        <div className="flex flex-col gap-2">
+          <input placeholder="Отображаемое имя" value={name} onChange={e=>setName(e.target.value)} className="px-2 py-1 rounded bg-gray-900 border border-gray-800" />
+          <input placeholder="@имя_пользователя" value={username} onChange={e=>setUsername(e.target.value)} className="px-2 py-1 rounded bg-gray-900 border border-gray-800" />
+          {username && <div className="text-xs opacity-60">{usernameTaken ? 'Имя занято' : 'Имя доступно'}</div>}
+          <input placeholder="Пароль" type="password" value={password} onChange={e=>setPassword(e.target.value)} className="px-2 py-1 rounded bg-gray-900 border border-gray-800" />
+          {error && <div className="text-xs text-red-400">{error}</div>}
+          <div className="flex gap-2">
+            <button onClick={tryRegister} className="flex-1 py-1 rounded bg-green-600">Зарегистрироваться</button>
+          </div>
+        </div>
+      )}
+
+      {mode === 'login' && (
+        <div className="flex flex-col gap-2">
+          <input placeholder="@имя_пользователя" value={username} onChange={e=>setUsername(e.target.value)} className="px-2 py-1 rounded bg-gray-900 border border-gray-800" />
+          <input placeholder="Пароль" type="password" value={password} onChange={e=>setPassword(e.target.value)} className="px-2 py-1 rounded bg-gray-900 border border-gray-800" />
+          {error && <div className="text-xs text-red-400">{error}</div>}
+          <div className="flex gap-2">
+            <button onClick={tryLogin} className="flex-1 py-1 rounded bg-indigo-600">Войти</button>
+          </div>
+          <div className="text-xs opacity-60">Подсказка: в демо можно зарегистрировать любого логин и пароль.</div>
+        </div>
+      )}
+    </div>
+  );
+}
